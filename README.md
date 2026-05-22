@@ -26,6 +26,7 @@ extension** — no Ubuntu, no ROS install on the host.
 | `vehicle_models` | gitlab.com/eufs/public/vehicle_models | Vehicle dynamics models |
 | `ros_can` | Bristol FSAI | FS-AI-API bridge for the real car |
 | `foxglove_extensions/eufs_sim_foxglove_plugins` | gitlab.com/eufs/public/eufs-sim-foxglove-plugins | **Foxglove Studio** extension (not a ROS package) — renders `ConeArrayWithCovariance` and `CarForces` natively |
+| `bri_cli/` | Bristol FSAI | Convenience CLI — `bri build` / `bri sim run` / `bri clean`. See [bri_cli/README.md](bri_cli/README.md) |
 
 ## Setup
 
@@ -45,21 +46,19 @@ extension** — no Ubuntu, no ROS install on the host.
    First build takes ~5–10 min while the image installs ROS Humble + system deps.
    Subsequent opens are instant.
 
-4. Inside the container, build the workspace:
+4. Inside the container, build and run via the bundled `bri` CLI (see
+   [`bri_cli/README.md`](bri_cli/README.md)):
 
    ```bash
-   colcon build --symlink-install
-   source install/setup.bash
+   bri build       # colcon build --symlink-install
+   bri sim run     # ros2 launch eufs_sim2 eufs_sim2.launch.py
    ```
 
-5. Launch the simulator + Foxglove bridge:
+   `foxglove_bridge` is auto-started by the dev container on port `8765`, so
+   `bri sim run` only needs to launch the simulator. Raw `colcon` / `ros2`
+   commands still work if you prefer them.
 
-   ```bash
-   ros2 launch eufs_sim2 eufs_sim2.launch.py &
-   ros2 run foxglove_bridge foxglove_bridge --ros-args -p port:=8765
-   ```
-
-6. From your host, open [Foxglove Studio](https://app.foxglove.dev/) and connect to
+5. From your host, open [Foxglove Studio](https://app.foxglove.dev/) and connect to
    `ws://localhost:8765`. Topics like `/odom`, `/cones`, `/imu/data`, `/cmd` should
    appear.
 

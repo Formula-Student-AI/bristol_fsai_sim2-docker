@@ -35,7 +35,8 @@
     "QT_QPA_PLATFORM": "xcb",
     "QT_X11_NO_MITSHM": "1"
   },
-  "postCreateCommand": "sudo rosdep install --from-paths /${localWorkspaceFolderBasename} --ignore-src -r -y || true",
+  "postCreateCommand": "sudo rosdep install --from-paths /${localWorkspaceFolderBasename} --ignore-src -r -y || true; bash /${localWorkspaceFolderBasename}/bri_cli/install.sh",
+  "postStartCommand": "bash -c 'source /opt/ros/humble/setup.bash && nohup ros2 run foxglove_bridge foxglove_bridge --ros-args -p port:=8765 > /tmp/foxglove_bridge.log 2>&1 &'",
   "customizations": {
     "vscode": {
       "extensions": [
