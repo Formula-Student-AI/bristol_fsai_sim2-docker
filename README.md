@@ -25,7 +25,7 @@ extension** — no Ubuntu, no ROS install on the host.
 | `map_lib` | gitlab.com/eufs/public/map_lib | Cone map / track library |
 | `vehicle_models` | gitlab.com/eufs/public/vehicle_models | Vehicle dynamics models |
 | `ros_can` | Bristol FSAI | FS-AI-API bridge for the real car |
-| `foxglove_extensions/eufs_sim_foxglove_plugins` | gitlab.com/eufs/public/eufs-sim-foxglove-plugins | **Foxglove Studio** extension (not a ROS package) — renders `ConeArrayWithCovariance` and `CarForces` natively |
+| `eufs_sim_foxglove_plugins` | gitlab.com/eufs/public/eufs-sim-foxglove-plugins (patched) | **Foxglove Studio** extension — renders `ConeWithColorProbabilityArray` (eufs_sim2 cone format), `ConeArrayWithCovariance`, and `CarForces`; plus Joystick / Mission State / Set Map panels |
 | `bri_cli/` | Bristol FSAI | Convenience CLI — `bri build` / `bri sim run` / `bri clean`. See [bri_cli/README.md](bri_cli/README.md) |
 
 ## Setup
@@ -54,36 +54,77 @@ extension** — no Ubuntu, no ROS install on the host.
    bri sim run     # ros2 launch eufs_sim2 eufs_sim2.launch.py
    ```
 
-   `foxglove_bridge` is auto-started by the dev container on port `8765`, so
-   `bri sim run` only needs to launch the simulator. Raw `colcon` / `ros2`
-   commands still work if you prefer them.
+   `bri sim run` also (re)starts `foxglove_bridge` on port `8765` automatically.
+   Raw `colcon` / `ros2` commands still work if you prefer them.
 
 5. From your host, open [Foxglove Studio](https://app.foxglove.dev/) and connect to
    `ws://localhost:8765`. Topics like `/odom`, `/cones`, `/imu/data`, `/cmd` should
    appear.
 
+   > **VSCode PORTS tab**: if `ws://localhost:8765` doesn't connect, check that port
+   > `8765` appears in the **PORTS** panel (bottom bar) with a green dot. VSCode
+   > Dev Containers forwards it automatically.
+
 ## Installing the Foxglove extension (one-time, host-side)
 
-The simulator publishes EUFS-specific message types (`ConeArrayWithCovariance`,
-`CarForces`) that Foxglove Studio cannot render natively. To get coloured cones and
-wheel-force arrows, install the bundled extension **into Foxglove Studio on your host**
-(not into the dev container — this is a frontend extension, not a ROS package).
+The simulator publishes EUFS-specific message types that Foxglove Studio cannot render
+natively. Install the bundled extension **into Foxglove Studio on your host** (not into
+the dev container — this is a frontend extension, not a ROS package).
 
 **Easy path — drag-and-drop the pre-built `.foxe`:**
 
 1. Open Foxglove Studio.
 2. Drag
-   [`foxglove_extensions/eufs_sim_foxglove_plugins/edinburghuniversityformulastudent.eufs-sim-foxglove-plugins-0.0.1.foxe`](foxglove_extensions/eufs_sim_foxglove_plugins/)
+   [`eufs_sim_foxglove_plugins/edinburghuniversityformulastudent.eufs-sim-foxglove-plugins-0.0.1.foxe`](eufs_sim_foxglove_plugins/)
    onto the Foxglove window.
-3. Reload — `ConeArrayWithCovariance` and `WheelForceArrows` panels are now available.
+3. Reload — coloured cones (`ConeWithColorProbabilityArray`), `WheelForceArrows`,
+   Joystick, Mission State, and Set Map panels are now available.
+
+> **Note:** this `.foxe` is a Bristol-patched build that adds support for the
+> `ConeWithColorProbabilityArray` message type used by eufs_sim2 (the upstream
+> extension only handles the older `ConeArrayWithCovariance` format).
 
 **Dev path — build from source** (only needed if you edit the plugin):
 
 ```bash
-cd foxglove_extensions/eufs_sim_foxglove_plugins
+cd eufs_sim_foxglove_plugins
 npm install
-npm run local-install   # installs into your host's Foxglove Studio
+npm run package        # produces a new .foxe in this directory
+# then drag the .foxe into Foxglove Studio
 ```
+
+## Driving the simulator
+
+After `bri sim run`, use these commands in a new terminal to drive the car:
+
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+# 1. Select mission (14 = Trackdrive, 11 = Acceleration, 12 = Skidpad, ...)
+ros2 service call /set_mission eufs_msgs/srv/SetMission "{mission: 14}"
+
+# 2. Send GO signal (transitions: OFF → READY → DRIVING)
+ros2 service call /go std_srvs/srv/Trigger "{}"
+
+# 3. Publish control commands  ← use acceleration, not speed
+ros2 topic pub /cmd ackermann_msgs/msg/AckermannDriveStamped \
+  "{drive: {acceleration: 2.0, steering_angle: 0.0}}" --rate 10
+```
+
+> **Control interface:** `/cmd` uses the `acceleration` field (m/s²) and
+> `steering_angle` (radians). The `speed` field is not used by the simulator — your
+> own velocity controller should convert a speed setpoint to an acceleration command
+> before publishing to `/cmd`.
+
+To reset between runs:
+
+```bash
+ros2 service call /reset std_srvs/srv/Trigger "{}"
+```
+
+In Foxglove Studio, add the **Mission State [local]** and **Joystick [local]** panels
+(from the EUFS extension) for a GUI-based alternative to the CLI commands above.
 
 ## Updating an EUFS package
 

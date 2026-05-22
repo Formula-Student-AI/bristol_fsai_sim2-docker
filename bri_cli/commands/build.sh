@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-source /opt/ros/humble/setup.bash
+set +u; source /opt/ros/humble/setup.bash; set -u
 cd "$EUFS_MASTER"
 
 if [[ $# -eq 0 ]]; then

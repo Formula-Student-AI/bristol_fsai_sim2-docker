@@ -8,7 +8,7 @@ shift || true
 
 case "$SUBCMD" in
     run)
-        source /opt/ros/humble/setup.bash
+        set +u; source /opt/ros/humble/setup.bash; set -u
         cd "$EUFS_MASTER"
 
         if [[ ! -f install/setup.bash ]]; then
@@ -16,11 +16,15 @@ case "$SUBCMD" in
             echo "Run 'bri build' first." >&2
             exit 1
         fi
-        source install/setup.bash
+        set +u; source install/setup.bash; set -u
 
-        # foxglove_bridge is started as a background service by the dev container
-        # (see .devcontainer/devcontainer.json postStartCommand). Here we only
-        # launch the simulator so its logs aren't interleaved with the bridge.
+        # Restart foxglove_bridge (kill stale instance if any, then relaunch)
+        pkill -x foxglove_bridge 2>/dev/null || true
+        nohup ros2 run foxglove_bridge foxglove_bridge \
+            --ros-args -p port:=8765 \
+            > /tmp/foxglove_bridge.log 2>&1 &
+        echo "foxglove_bridge started on ws://localhost:8765 (log: /tmp/foxglove_bridge.log)"
+
         exec ros2 launch eufs_sim2 eufs_sim2.launch.py "$@"
         ;;
     -h|--help|help|"")
